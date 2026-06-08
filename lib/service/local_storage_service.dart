@@ -27,8 +27,6 @@ class LocalStorageService extends GetxService {
       kIsDynamicColor = "isDynamicColor",
       kCustomColor = "customColor",
       kThemeMode = "themeMode",
-      kDefaultHomePage = "defaultHomePage",
-      kReadMode = "readMode",
       kIsRelativeTime = "isRelativeTime",
       kReaderDirection = "readerDirection",
       kReaderFontSize = "readerFontSize",
@@ -50,7 +48,17 @@ class LocalStorageService extends GetxService {
       kReaderNightBgImage = "readerNightBgImage",
       kReaderTextFamily = "readerTextFamily",
       kReaderTextStyleFilePath = "readerTextStyleFilePath",
-      kReaderPageTurningAnimation = "readerPageTurningAnimation";
+      kReaderPageTurningAnimation = "readerPageTurningAnimation",
+      kReaderTtsEnabled = "readerTtsEnabled",
+      kReaderTtsEngine = "readerTtsEngine",
+      kReaderTtsVoice = "readerTtsVoice",
+      kReaderTtsRate = "readerTtsRate",
+      kDevModeEnabled = "devModeEnabled",
+      kReaderTtsPitch = "readerTtsPitch",
+      kReaderTtsVolume = "readerTtsVolume",
+      kReaderParaIndent = "readerParaIndent",
+      kReaderParaSpacing = "readerParaSpacing",
+      kReaderBottomStatusBarHorizontalSpacing = "readerBottomStatusBarHorizontalSpacing";
 
   Future<void> init() async {
     final Directory dir = await getApplicationSupportDirectory();
@@ -96,7 +104,7 @@ class LocalStorageService extends GetxService {
 
   void setWenku8Node(Wenku8Node value) => _setting.put(kWenku8Node, value.index);
 
-  Wenku8Node getWenku8Node() => Wenku8Node.values[_setting.get(kWenku8Node, defaultValue: Wenku8Node.wwwWenku8Net.index)];
+  Wenku8Node getWenku8Node() => Wenku8Node.values[_setting.get(kWenku8Node, defaultValue: Wenku8Node.wwwWenku8Cc.index)];
 
   ReaderDirection getReaderDirection() => ReaderDirection.values[_reader.get(kReaderDirection, defaultValue: ReaderDirection.upToDown.index)];
 
@@ -190,7 +198,53 @@ class LocalStorageService extends GetxService {
 
   void setReaderDayBgImage(String? value) => _reader.put(kReaderDayBgImage, value);
 
-  String? getReaderNightBgImage() => _reader.get(kReaderDayBgImage, defaultValue: null);
+  String? getReaderNightBgImage() => _reader.get(kReaderNightBgImage, defaultValue: null);
 
-  void setReaderNightBgImage(String? value) => _reader.put(kReaderDayBgImage, value);
+  void setReaderNightBgImage(String? value) => _reader.put(kReaderNightBgImage, value);
+
+  bool getReaderTtsEnabled() => _reader.get(kReaderTtsEnabled, defaultValue: false);
+
+  void setReaderTtsEnabled(bool enabled) => _reader.put(kReaderTtsEnabled, enabled);
+
+  String? getReaderTtsEngine() => _reader.get(kReaderTtsEngine);
+
+  void setReaderTtsEngine(String? value) => _reader.put(kReaderTtsEngine, value);
+
+  Map<String, String>? getReaderTtsVoice() {
+    final v = _reader.get(kReaderTtsVoice);
+    if (v is Map) {
+      return v.map((k, val) => MapEntry(k.toString(), val.toString()));
+    }
+    return null;
+  }
+
+  void setReaderTtsVoice(Map<String, String>? value) => _reader.put(kReaderTtsVoice, value);
+
+  double getReaderTtsRate() => _reader.get(kReaderTtsRate, defaultValue: 0.5);
+
+  void setReaderTtsRate(double value) => _reader.put(kReaderTtsRate, value);
+
+  double getReaderTtsPitch() => _reader.get(kReaderTtsPitch, defaultValue: 1.0);
+
+  void setReaderTtsPitch(double value) => _reader.put(kReaderTtsPitch, value);
+
+  double getReaderTtsVolume() => _reader.get(kReaderTtsVolume, defaultValue: 1.0);
+
+  void setReaderTtsVolume(double value) => _reader.put(kReaderTtsVolume, value);
+
+  bool getDevModeEnabled() => _setting.get(kDevModeEnabled, defaultValue: false);
+
+  void setDevModeEnabled(bool value) => _setting.put(kDevModeEnabled, value);
+
+  int getReaderParaIndent() => _reader.get(kReaderParaIndent, defaultValue: 1);
+
+  void setReaderParaIndent(int value) => _reader.put(kReaderParaIndent, value);
+
+  int getReaderParaSpacing() => _reader.get(kReaderParaSpacing, defaultValue: 25);
+
+  void setReaderParaSpacing(int value) => _reader.put(kReaderParaSpacing, value);
+
+  int getReaderBottomStatusBarHorizontalSpacing() => _reader.get(kReaderBottomStatusBarHorizontalSpacing, defaultValue: 25);
+
+  void setReaderBottomStatusBarHorizontalSpacing(int value) => _reader.put(kReaderBottomStatusBarHorizontalSpacing, value);
 }

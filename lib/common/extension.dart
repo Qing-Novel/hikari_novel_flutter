@@ -16,6 +16,13 @@ extension Controller on GetInterface {
 
 extension ScreenInfo on BuildContext {
   bool isLargeScreen() => MediaQuery.of(this).size.width > MediaQuery.of(this).size.height;
+
+  bool isTabletLikeScreen() => MediaQuery.of(this).size.shortestSide >= 600;
+
+  bool shouldAutoUseDualPage() {
+    final size = MediaQuery.of(this).size;
+    return size.shortestSide >= 600 && size.width > size.height;
+  }
 }
 
 extension UrlEncodingIfNotAscii on String {
@@ -42,14 +49,5 @@ extension UrlEncodingIfNotAscii on String {
       }
     }
     return buffer.toString();
-  }
-}
-
-extension Menu on BuildContext {
-  RelativeRect getMenuPosition() {
-    final RenderBox tileBox = findRenderObject() as RenderBox;
-    final Offset tilePos = tileBox.localToGlobal(Offset.zero);
-    final Size tileSize = tileBox.size;
-    return RelativeRect.fromLTRB(tilePos.dx + tileSize.width, tilePos.dy + tileSize.height, tilePos.dx + tileSize.width, tilePos.dy);
   }
 }
