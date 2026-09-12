@@ -17,22 +17,22 @@ on:
         description: Build iOS platform artifacts.
         required: true
         type: boolean
-        default: true
+        default: false
       build_linux:
         description: Build Linux platform artifacts.
         required: true
         type: boolean
-        default: true
+        default: false
       build_macos:
         description: Build MacOS platform artifacts.
         required: true
         type: boolean
-        default: true
+        default: false
       build_windows:
         description: Build Windows platform artifacts.
         required: true
         type: boolean
-        default: true
+        default: false
       dry_run:
         description: Dry run, do NOT upload artifacts.
         required: true
@@ -40,7 +40,7 @@ on:
         default: true
 
 env:
-  CI_FLUTTER_VERSION: "3.47.4"
+  CI_FLUTTER_VERSION: "3.38.7"
   CI_RUST_VERSION: "1.83.0"
 
 jobs:
@@ -67,7 +67,6 @@ jobs:
         run: |
           git submodule update --init --recursive --force
           flutter pub get
-          dart ./Makefile.dart
       - name: Build Linux
         if: ${{ github.event_name == 'push' || inputs.build_linux }}
         run: flutter build linux --release
@@ -112,41 +111,19 @@ jobs:
           sudo apt update -y
           sudo apt install -y ninja-build libgtk-3-dev
           git submodule update --init --recursive --force
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{env.CI_RUST_VERSION}}
-          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
-      - uses: nttld/setup-ndk@v1
-        id: setup-ndk
-        with:
-          ndk-version: r29
-      - name: Update NDK path
-        run: |
-          echo "${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_PATH
-      - name: Prepare flutter_avif
-        run: |
-          sudo apt install -y make meson nasm
-          cargo install cargo-ndk@3.5.4 --locked
-          ./scripts/build-flutter_avif-android.sh
-        env:
-          ANDROID_NDK: ${{ steps.setup-ndk.outputs.ndk-path }}
-          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
-          ANDROID_NDK_LATEST_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
-          ANDROID_NDK_ROOT: ${{ steps.setup-ndk.outputs.ndk-path }}
       - name: Precompile
         run: |
           flutter pub get
-          dart ./Makefile.dart
       - name: Setup Android sign key
         if: ${{ github.event_name == 'push' || inputs.build_android }}
         run: |
           echo '${{ secrets.KEYSTORE }}' | base64 --decode > android/app/key.jks
           echo '${{ secrets.KEY_PROPERTIES }}' > android/key.properties
-      - name: Build Android
+      - name: Build Android split per abi
         if: ${{ github.event_name == 'push' || inputs.build_android }}
         run: |
           flutter build apk --release --split-per-abi
-      - name: Pack Android apk
+      - name: Rename APK
         if: ${{ github.event_name == 'push' || inputs.build_android }}
         run: |
           pushd build/app/outputs/flutter-apk/
@@ -178,7 +155,6 @@ jobs:
         run: |
           git submodule update --init --recursive --force
           flutter pub get
-          dart ./Makefile.dart
       - name: Build Windows
         run: flutter build windows --release
       - name: Pre Packing
@@ -187,7 +163,7 @@ jobs:
           cd build/windows/x64/runner
           Rename-Item Release Hikari_Novel
           cd ../../../../
-      - name: Pack Windows tarball
+      - name: Pack Windows zip
         uses: thedoctor0/zip-release@master
         with:
           type: "zip"
@@ -217,7 +193,6 @@ jobs:
         run: |
           git submodule update --init --recursive --force
           flutter pub get
-          dart ./Makefile.dart
       - name: Build MacOS
         if: ${{ github.event_name == 'push' || inputs.build_macos }}
         run: |
@@ -238,7 +213,7 @@ jobs:
         if: ${{ github.event_name == 'push' || inputs.build_ios }}
         run: |
           flutter build ios --release --no-codesign
-      - name: Packing
+      - name: Packing IPA
         if: ${{ github.event_name == 'push' || inputs.build_ios }}
         run: |
           mkdir Payload
