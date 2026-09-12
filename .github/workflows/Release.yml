@@ -1,0 +1,253 @@
+# Manual runs: Actions -> "Test build" -> Run workflow; tick only the platforms
+# you need and untick dry_run to get the build as a workflow artifact.
+name: Release build
+
+on:
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+    inputs:
+      build_android:
+        description: Build Android platform artifacts.
+        required: true
+        type: boolean
+        default: true
+      build_ios:
+        description: Build iOS platform artifacts.
+        required: true
+        type: boolean
+        default: true
+      build_linux:
+        description: Build Linux platform artifacts.
+        required: true
+        type: boolean
+        default: true
+      build_macos:
+        description: Build MacOS platform artifacts.
+        required: true
+        type: boolean
+        default: true
+      build_windows:
+        description: Build Windows platform artifacts.
+        required: true
+        type: boolean
+        default: true
+      dry_run:
+        description: Dry run, do NOT upload artifacts.
+        required: true
+        type: boolean
+        default: true
+
+env:
+  CI_FLUTTER_VERSION: "3.41.5"
+  CI_RUST_VERSION: "1.83.0"
+
+jobs:
+  build-linux:
+    name: Build Linux
+    if: ${{ github.event_name == 'push' || inputs.build_linux }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: "zulu"
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{env.CI_FLUTTER_VERSION}}
+          cache: true
+      - run: |
+          sudo apt update -y
+          sudo apt install -y ninja-build libgtk-3-dev sqlite3 libsqlite3-dev
+      - name: Precompile
+        run: |
+          git submodule update --init --recursive --force
+          flutter pub get
+          dart ./Makefile.dart
+      - name: Build Linux
+        if: ${{ github.event_name == 'push' || inputs.build_linux }}
+        run: flutter build linux --release
+      - name: Pre Packing
+        if: ${{ github.event_name == 'push' || inputs.build_linux }}
+        run: |
+          pushd build/linux/x64/release/
+          mv bundle Hikari_Novel
+          popd
+      - name: Pack Linux tarball
+        if: ${{ github.event_name == 'push' || inputs.build_linux }}
+        uses: thedoctor0/zip-release@master
+        with:
+          type: "tar"
+          filename: Hikari_Novel-linux.tar.gz
+          directory: build/linux/x64/release/
+          path: Hikari_Novel
+      - name: Upload Linux artifacts
+        if: ${{ github.event_name != 'push' && inputs.build_linux && !inputs.dry_run }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Hikari_Novel-linux-tarball
+          path: build/linux/x64/release/Hikari_Novel-linux.tar.gz
+
+  build-android:
+    name: Build Android
+    if: ${{ github.event_name == 'push' || inputs.build_android }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: "zulu"
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{env.CI_FLUTTER_VERSION}}
+          cache: true
+      - run: |
+          sudo ./scripts/github_free_disk_space.sh
+          sudo apt update -y
+          sudo apt install -y ninja-build libgtk-3-dev
+          git submodule update --init --recursive --force
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{env.CI_RUST_VERSION}}
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
+      - uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r29
+      - name: Update NDK path
+        run: |
+          echo "${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin" >> $GITHUB_PATH
+      - name: Prepare flutter_avif
+        run: |
+          sudo apt install -y make meson nasm
+          cargo install cargo-ndk@3.5.4 --locked
+          ./scripts/build-flutter_avif-android.sh
+        env:
+          ANDROID_NDK: ${{ steps.setup-ndk.outputs.ndk-path }}
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+          ANDROID_NDK_LATEST_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+          ANDROID_NDK_ROOT: ${{ steps.setup-ndk.outputs.ndk-path }}
+      - name: Precompile
+        run: |
+          flutter pub get
+          dart ./Makefile.dart
+      - name: Setup Android sign key
+        if: ${{ github.event_name == 'push' || inputs.build_android }}
+        run: |
+          echo '${{ secrets.KEYSTORE }}' | base64 --decode > android/app/key.jks
+          echo '${{ secrets.KEY_PROPERTIES }}' > android/key.properties
+      - name: Build Android
+        if: ${{ github.event_name == 'push' || inputs.build_android }}
+        run: |
+          flutter build apk --release
+      - name: Pack Android apk
+        if: ${{ github.event_name == 'push' || inputs.build_android }}
+        run: |
+          pushd build/app/outputs/flutter-apk/
+          mv app-arm64-v8a-release.apk Hikari_Novel-arm64_v8a.apk
+          mv app-armeabi-v7a-release.apk Hikari_Novel-armeabi_v7a.apk
+          popd
+      - name: Upload Android artifacts
+        if: ${{ github.event_name != 'push' && inputs.build_android && !inputs.dry_run }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Hikari_Novel-apk-arm64_v8a
+          path: |
+            build/app/outputs/flutter-apk/Hikari_Novel-arm64_v8a.apk
+            build/app/outputs/flutter-apk/Hikari_Novel-armeabi_v7a.apk
+
+  build-windows:
+    name: Build Windows
+    if: ${{ github.event_name == 'push' || inputs.build_windows }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{env.CI_FLUTTER_VERSION}}
+      - name: Precompile
+        shell: pwsh
+        run: |
+          git submodule update --init --recursive --force
+          flutter pub get
+          dart ./Makefile.dart
+      - name: Build Windows
+        run: flutter build windows --release
+      - name: Pre Packing
+        shell: pwsh
+        run: |
+          cd build/windows/x64/runner
+          Rename-Item Release Hikari_Novel
+          cd ../../../../
+      - name: Pack Windows tarball
+        uses: thedoctor0/zip-release@master
+        with:
+          type: "zip"
+          filename: Hikari_Novel-windows.zip
+          directory: build/windows/x64/runner
+          path: Hikari_Novel
+      - name: Upload Windows artifacts
+        if: ${{ github.event_name != 'push' && !inputs.dry_run }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Hikari_Novel-windows-tarball
+          path: build/windows/x64/runner/Hikari_Novel-windows.zip
+
+  build-macos-and-ios:
+    name: Build MacOS and iOS
+    if: ${{ github.event_name == 'push' || inputs.build_macos || inputs.build_ios }}
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{env.CI_FLUTTER_VERSION}}
+          cache: true
+      - name: Precompile
+        run: |
+          git submodule update --init --recursive --force
+          flutter pub get
+          dart ./Makefile.dart
+      - name: Build MacOS
+        if: ${{ github.event_name == 'push' || inputs.build_macos }}
+        run: |
+          flutter build macos --release
+      - name: Packing MacOS dmg
+        if: ${{ github.event_name == 'push' || inputs.build_macos }}
+        run: |
+          brew install python-setuptools
+          npm install -g appdmg
+          appdmg appdmg.json build/Hikari_Novel-universal.dmg
+      - name: Upload MacOS artifacts
+        if: ${{ github.event_name != 'push' && inputs.build_macos && !inputs.dry_run }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Hikari_Novel-macos-tarball
+          path: build/Hikari_Novel-universal.dmg
+      - name: Build iOS ipa
+        if: ${{ github.event_name == 'push' || inputs.build_ios }}
+        run: |
+          flutter build ios --release --no-codesign
+      - name: Packing
+        if: ${{ github.event_name == 'push' || inputs.build_ios }}
+        run: |
+          mkdir Payload
+          mv build/ios/iphoneos/Runner.app Payload
+          zip -r9 Hikari_Novel.ipa Payload
+      - name: Upload iOS artifacts
+        if: ${{ github.event_name != 'push' && inputs.build_ios && !inputs.dry_run }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: Hikari_Novel-ios-tarball
+          path: Hikari_Novel.ipa
