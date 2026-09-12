@@ -42,7 +42,7 @@ on:
         default: true
 
 env:
-  CI_FLUTTER_VERSION: "3.47.4"
+  CI_FLUTTER_VERSION: "3.38.7"
   CI_RUST_VERSION: "1.83.0"
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
