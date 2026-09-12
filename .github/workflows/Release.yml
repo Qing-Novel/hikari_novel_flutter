@@ -42,7 +42,7 @@ on:
         default: true
 
 env:
-  CI_FLUTTER_VERSION: "3.47.4"
+  CI_FLUTTER_VERSION: "3.38.7"
   CI_RUST_VERSION: "1.83.0"
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -95,7 +95,6 @@ jobs:
         run: |
           git submodule update --init --recursive --force
           flutter pub get
-          dart ./Makefile.dart
       - name: Build Linux
         if: ${{ github.event_name == 'pull_request' || inputs.build_linux }}
         run: flutter build linux --release
@@ -156,7 +155,6 @@ jobs:
       - name: Precompile
         run: |
           flutter pub get
-          dart ./Makefile.dart
       # ========= 签名部分，不需要签名直接注释掉这整块 =========
       # - name: Setup Android sign key
       #   if: ${{ github.event_name == 'pull_request' || inputs.build_android }}
@@ -214,7 +212,6 @@ jobs:
         run: |
           git submodule update --init --recursive --force
           flutter pub get
-          dart ./Makefile.dart
       - name: Build Windows
         env:
           # 修复MSVC STL1011 coroutine废弃报错
@@ -269,12 +266,10 @@ jobs:
         run: |
           git submodule update --init --recursive --force
           flutter pub get
-          dart ./Makefile.dart
       - name: Build MacOS
         if: ${{ github.event_name == 'pull_request' || inputs.build_macos }}
         run: |
           flutter build macos --release
-      # 移除appdmg打包，仓库缺少appdmg.json，直接输出.app
       - name: Upload MacOS artifacts to workflow artifact
         if: ${{ github.event_name == 'pull_request' || (!inputs.dry_run && inputs.build_macos) }}
         uses: actions/upload-artifact@v4
