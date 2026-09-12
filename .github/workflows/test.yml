@@ -40,7 +40,7 @@ on:
         default: true
 
 env:
-  CI_FLUTTER_VERSION: "3.41.5"
+  CI_FLUTTER_VERSION: "3.47.4"
   CI_RUST_VERSION: "1.83.0"
 
 jobs:
@@ -109,7 +109,6 @@ jobs:
           flutter-version: ${{env.CI_FLUTTER_VERSION}}
           cache: true
       - run: |
-          sudo ./scripts/github_free_disk_space.sh
           sudo apt update -y
           sudo apt install -y ninja-build libgtk-3-dev
           git submodule update --init --recursive --force
@@ -146,7 +145,7 @@ jobs:
       - name: Build Android
         if: ${{ github.event_name == 'push' || inputs.build_android }}
         run: |
-          flutter build apk --release
+          flutter build apk --release --split-per-abi
       - name: Pack Android apk
         if: ${{ github.event_name == 'push' || inputs.build_android }}
         run: |
@@ -158,7 +157,7 @@ jobs:
         if: ${{ github.event_name != 'push' && inputs.build_android && !inputs.dry_run }}
         uses: actions/upload-artifact@v4
         with:
-          name: Hikari_Novel-apk-arm64_v8a
+          name: Hikari_Novel-apk
           path: |
             build/app/outputs/flutter-apk/Hikari_Novel-arm64_v8a.apk
             build/app/outputs/flutter-apk/Hikari_Novel-armeabi_v7a.apk
