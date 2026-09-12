@@ -1,6 +1,4 @@
-# Manual runs: Actions -> "Test build" -> Run workflow; tick only the platforms
-# you need and untick dry_run to get the build as a workflow artifact.
-name: Release build
+name: Release build Manual
 
 on:
   pull_request:
@@ -8,6 +6,10 @@ on:
       - master
   workflow_dispatch:
     inputs:
+      release_tag_name:
+        description: 'Release tag name (only effective when dry_run = false, example v1.2.3)'
+        required: false
+        type: string
       build_android:
         description: Build Android platform artifacts.
         required: true
@@ -34,7 +36,7 @@ on:
         type: boolean
         default: true
       dry_run:
-        description: Dry run, do NOT upload artifacts.
+        description: Dry run, do NOT create release and NOT upload to release page.
         required: true
         type: boolean
         default: true
@@ -44,10 +46,35 @@ env:
   CI_RUST_VERSION: "1.83.0"
 
 jobs:
+  create-release:
+    name: Create GitHub Release
+    if: ${{ github.event_name == 'workflow_dispatch' && !inputs.dry_run && inputs.release_tag_name != '' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      PRERELEASE: ${{ contains(inputs.release_tag_name, '-') }}
+    outputs:
+      release-id: ${{ steps.create_release.outputs.id }}
+      release-upload-url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - name: Create Release
+        id: create_release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ inputs.release_tag_name }}
+          prerelease: ${{ env.PRERELEASE }}
+          allowUpdates: true
+          omitPrereleaseDuringUpdate: true
+          body: "Built from manual Release build workflow"
+
   build-linux:
     name: Build Linux
-    if: ${{ github.event_name == 'push' || inputs.build_linux }}
+    if: ${{ github.event_name == 'pull_request' || inputs.build_linux }}
     runs-on: ubuntu-latest
+    needs: [create-release]
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -69,33 +96,46 @@ jobs:
           flutter pub get
           dart ./Makefile.dart
       - name: Build Linux
-        if: ${{ github.event_name == 'push' || inputs.build_linux }}
+        if: ${{ github.event_name == 'pull_request' || inputs.build_linux }}
         run: flutter build linux --release
       - name: Pre Packing
-        if: ${{ github.event_name == 'push' || inputs.build_linux }}
+        if: ${{ github.event_name == 'pull_request' || inputs.build_linux }}
         run: |
           pushd build/linux/x64/release/
           mv bundle Hikari_Novel
           popd
       - name: Pack Linux tarball
-        if: ${{ github.event_name == 'push' || inputs.build_linux }}
+        if: ${{ github.event_name == 'pull_request' || inputs.build_linux }}
         uses: thedoctor0/zip-release@master
         with:
           type: "tar"
           filename: Hikari_Novel-linux.tar.gz
           directory: build/linux/x64/release/
           path: Hikari_Novel
-      - name: Upload Linux artifacts
-        if: ${{ github.event_name != 'push' && inputs.build_linux && !inputs.dry_run }}
+      - name: Upload Linux artifacts to workflow artifact
+        if: ${{ github.event_name == 'pull_request' || (!inputs.dry_run && inputs.build_linux) }}
         uses: actions/upload-artifact@v4
         with:
           name: Hikari_Novel-linux-tarball
           path: build/linux/x64/release/Hikari_Novel-linux.tar.gz
+      - name: Upload to GitHub Release
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.dry_run && inputs.build_linux && inputs.release_tag_name != '' }}
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          omitBody: true
+          omitBodyDuringUpdate: true
+          omitPrereleaseDuringUpdate: true
+          artifacts: build/linux/x64/release/Hikari_Novel-linux.tar.gz
+          tag: ${{ inputs.release_tag_name }}
 
   build-android:
     name: Build Android
-    if: ${{ github.event_name == 'push' || inputs.build_android }}
+    if: ${{ github.event_name == 'pull_request' || inputs.build_android }}
     runs-on: ubuntu-latest
+    needs: [create-release]
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -139,34 +179,49 @@ jobs:
           flutter pub get
           dart ./Makefile.dart
       - name: Setup Android sign key
-        if: ${{ github.event_name == 'push' || inputs.build_android }}
+        if: ${{ github.event_name == 'pull_request' || inputs.build_android }}
         run: |
           echo '${{ secrets.KEYSTORE }}' | base64 --decode > android/app/key.jks
           echo '${{ secrets.KEY_PROPERTIES }}' > android/key.properties
       - name: Build Android
-        if: ${{ github.event_name == 'push' || inputs.build_android }}
+        if: ${{ github.event_name == 'pull_request' || inputs.build_android }}
         run: |
           flutter build apk --release
       - name: Pack Android apk
-        if: ${{ github.event_name == 'push' || inputs.build_android }}
+        if: ${{ github.event_name == 'pull_request' || inputs.build_android }}
         run: |
           pushd build/app/outputs/flutter-apk/
           mv app-arm64-v8a-release.apk Hikari_Novel-arm64_v8a.apk
           mv app-armeabi-v7a-release.apk Hikari_Novel-armeabi_v7a.apk
           popd
-      - name: Upload Android artifacts
-        if: ${{ github.event_name != 'push' && inputs.build_android && !inputs.dry_run }}
+      - name: Upload Android artifacts to workflow artifact
+        if: ${{ github.event_name == 'pull_request' || (!inputs.dry_run && inputs.build_android) }}
         uses: actions/upload-artifact@v4
         with:
-          name: Hikari_Novel-apk-arm64_v8a
+          name: Hikari_Novel-apk
           path: |
             build/app/outputs/flutter-apk/Hikari_Novel-arm64_v8a.apk
             build/app/outputs/flutter-apk/Hikari_Novel-armeabi_v7a.apk
+      - name: Upload to GitHub Release
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.dry_run && inputs.build_android && inputs.release_tag_name != '' }}
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          omitBody: true
+          omitBodyDuringUpdate: true
+          omitPrereleaseDuringUpdate: true
+          artifacts: |
+            build/app/outputs/flutter-apk/Hikari_Novel-arm64_v8a.apk
+            build/app/outputs/flutter-apk/Hikari_Novel-armeabi_v7a.apk
+          tag: ${{ inputs.release_tag_name }}
 
   build-windows:
     name: Build Windows
-    if: ${{ github.event_name == 'push' || inputs.build_windows }}
+    if: ${{ github.event_name == 'pull_request' || inputs.build_windows }}
     runs-on: windows-latest
+    needs: [create-release]
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -195,17 +250,30 @@ jobs:
           filename: Hikari_Novel-windows.zip
           directory: build/windows/x64/runner
           path: Hikari_Novel
-      - name: Upload Windows artifacts
-        if: ${{ github.event_name != 'push' && !inputs.dry_run }}
+      - name: Upload Windows artifacts to workflow artifact
+        if: ${{ github.event_name == 'pull_request' || (!inputs.dry_run && inputs.build_windows) }}
         uses: actions/upload-artifact@v4
         with:
           name: Hikari_Novel-windows-tarball
           path: build/windows/x64/runner/Hikari_Novel-windows.zip
+      - name: Upload to GitHub Release
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.dry_run && inputs.build_windows && inputs.release_tag_name != '' }}
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          omitBody: true
+          omitBodyDuringUpdate: true
+          omitPrereleaseDuringUpdate: true
+          artifacts: build/windows/x64/runner/Hikari_Novel-windows.zip
+          tag: ${{ inputs.release_tag_name }}
 
   build-macos-and-ios:
     name: Build MacOS and iOS
-    if: ${{ github.event_name == 'push' || inputs.build_macos || inputs.build_ios }}
+    if: ${{ github.event_name == 'pull_request' || inputs.build_macos || inputs.build_ios }}
     runs-on: macos-latest
+    needs: [create-release]
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -220,34 +288,54 @@ jobs:
           flutter pub get
           dart ./Makefile.dart
       - name: Build MacOS
-        if: ${{ github.event_name == 'push' || inputs.build_macos }}
+        if: ${{ github.event_name == 'pull_request' || inputs.build_macos }}
         run: |
           flutter build macos --release
       - name: Packing MacOS dmg
-        if: ${{ github.event_name == 'push' || inputs.build_macos }}
+        if: ${{ github.event_name == 'pull_request' || inputs.build_macos }}
         run: |
           brew install python-setuptools
           npm install -g appdmg
           appdmg appdmg.json build/Hikari_Novel-universal.dmg
-      - name: Upload MacOS artifacts
-        if: ${{ github.event_name != 'push' && inputs.build_macos && !inputs.dry_run }}
+      - name: Upload MacOS artifacts to workflow artifact
+        if: ${{ github.event_name == 'pull_request' || (!inputs.dry_run && inputs.build_macos) }}
         uses: actions/upload-artifact@v4
         with:
           name: Hikari_Novel-macos-tarball
           path: build/Hikari_Novel-universal.dmg
+      - name: Upload macOS to GitHub Release
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.dry_run && inputs.build_macos && inputs.release_tag_name != '' }}
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          omitBody: true
+          omitBodyDuringUpdate: true
+          omitPrereleaseDuringUpdate: true
+          artifacts: build/Hikari_Novel-universal.dmg
+          tag: ${{ inputs.release_tag_name }}
       - name: Build iOS ipa
-        if: ${{ github.event_name == 'push' || inputs.build_ios }}
+        if: ${{ github.event_name == 'pull_request' || inputs.build_ios }}
         run: |
           flutter build ios --release --no-codesign
       - name: Packing
-        if: ${{ github.event_name == 'push' || inputs.build_ios }}
+        if: ${{ github.event_name == 'pull_request' || inputs.build_ios }}
         run: |
           mkdir Payload
           mv build/ios/iphoneos/Runner.app Payload
           zip -r9 Hikari_Novel.ipa Payload
-      - name: Upload iOS artifacts
-        if: ${{ github.event_name != 'push' && inputs.build_ios && !inputs.dry_run }}
+      - name: Upload iOS artifacts to workflow artifact
+        if: ${{ github.event_name == 'pull_request' || (!inputs.dry_run && inputs.build_ios) }}
         uses: actions/upload-artifact@v4
         with:
           name: Hikari_Novel-ios-tarball
           path: Hikari_Novel.ipa
+      - name: Upload iOS to GitHub Release
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.dry_run && inputs.build_ios && inputs.release_tag_name != '' }}
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          omitBody: true
+          omitBodyDuringUpdate: true
+          omitPrereleaseDuringUpdate: true
+          artifacts: Hikari_Novel.ipa
+          tag: ${{ inputs.release_tag_name }}
