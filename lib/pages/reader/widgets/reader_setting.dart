@@ -22,17 +22,13 @@ class ReaderSettingPage extends StatelessWidget {
     return DefaultTabController(
       length: 4,
       child: Scaffold(
-        appBar: AppBar(
-          title: Text("setting".tr),
-          titleSpacing: 0,
-          bottom: TabBar(
-            tabs: [
-              Tab(icon: const Icon(Icons.settings_outlined), text: "basic".tr),
-              Tab(icon: const Icon(Icons.palette_outlined), text: "theme".tr),
-              Tab(icon: const Icon(Icons.record_voice_over_outlined), text: "listen_to_books".tr),
-              Tab(icon: const Icon(Icons.padding), text: "margin".tr),
-            ],
-          ),
+        appBar: TabBar(
+          tabs: [
+            Tab(icon: const Icon(Icons.settings_outlined), text: "basic".tr),
+            Tab(icon: const Icon(Icons.palette_outlined), text: "theme".tr),
+            Tab(icon: const Icon(Icons.record_voice_over_outlined), text: "listen_to_books".tr),
+            Tab(icon: const Icon(Icons.padding), text: "margin".tr),
+          ],
         ),
         body: TabBarView(children: [_buildBasic(context), _buildTheme(context), _buildListen(context), _buildPadding()]),
       ),
@@ -42,57 +38,45 @@ class ReaderSettingPage extends StatelessWidget {
   Widget _buildBasic(BuildContext context) {
     return ListView(
       children: [
-        Obx(
-          () => SliderTile(
-            title: "font_size".tr,
-            leading: const Icon(Icons.format_size),
-            min: 7,
-            max: 48,
-            divisions: 41,
-            decimalPlaces: 0,
-            value: controller.readerSettingsState.value.fontSize,
-            onChanged: (value) => controller.readerSettingsState.value = controller.readerSettingsState.value.copyWith(fontSize: value),
-            onChangeEnd: (value) => controller.changeFontSize(value),
-          ),
+        SliderTile(
+          title: "font_size".tr,
+          leading: const Icon(Icons.format_size),
+          min: 7,
+          max: 48,
+          divisions: 41,
+          decimalPlaces: 0,
+          initValue: controller.readerSettingsState.value.fontSize,
+          onChangeEnd: (value) => controller.changeFontSize(value),
         ),
-        Obx(
-          () => SliderTile(
-            title: "line_spacing".tr,
-            leading: const Icon(Icons.format_line_spacing_outlined),
-            min: 0.1,
-            max: 3,
-            divisions: 29,
-            decimalPlaces: 1,
-            value: controller.readerSettingsState.value.lineSpacing,
-            onChanged: (value) => controller.readerSettingsState.value = controller.readerSettingsState.value.copyWith(lineSpacing: value),
-            onChangeEnd: (value) => controller.changeLineSpacing(value),
-          ),
+        SliderTile(
+          title: "line_spacing".tr,
+          leading: const Icon(Icons.format_line_spacing_outlined),
+          min: 0.1,
+          max: 3,
+          divisions: 29,
+          decimalPlaces: 1,
+          initValue: controller.readerSettingsState.value.lineSpacing,
+          onChangeEnd: (value) => controller.changeLineSpacing(value),
         ),
-        Obx(
-          () => SliderTile(
-            title: "para_indent".tr,
-            leading: const Icon(Icons.format_indent_increase),
-            min: 0,
-            max: 10,
-            divisions: 10,
-            decimalPlaces: 0,
-            value: controller.readerSettingsState.value.readerParaIndent,
-            onChanged: (value) => controller.readerSettingsState.value = controller.readerSettingsState.value.copyWith(readerParaIndent: value.toInt()),
-            onChangeEnd: (value) => controller.changeReaderParaIndent(value.toInt()),
-          ),
+        SliderTile(
+          title: "para_indent".tr,
+          leading: const Icon(Icons.format_indent_increase),
+          min: 0,
+          max: 10,
+          divisions: 10,
+          decimalPlaces: 0,
+          initValue: controller.readerSettingsState.value.readerParaIndent,
+          onChangeEnd: (value) => controller.changeReaderParaIndent(value.toInt()),
         ),
-        Obx(
-          () => SliderTile(
-            title: "para_spacing".tr,
-            leading: const Icon(Icons.expand),
-            min: 0,
-            max: 50,
-            divisions: 50,
-            decimalPlaces: 0,
-            value: controller.readerSettingsState.value.readerParaSpacing,
-            onChanged: (value) => controller.readerSettingsState.value = controller.readerSettingsState.value.copyWith(readerParaSpacing: value.toInt()),
-            onChangeEnd: (value) => controller.changeReaderParaSpacing(value.toInt()),
-          ),
+        SliderTile(
+          title: "para_spacing".tr,
+          leading: const Icon(Icons.expand),
+          min: 0,
+          max: 50,
+          divisions: 50,
+          decimalPlaces: 0,
+          initValue: controller.readerSettingsState.value.readerParaSpacing,
+          onChangeEnd: (value) => controller.changeReaderParaSpacing(value.toInt()),
         ),
         Obx(() {
           final sub = switch (controller.readerSettingsState.value.direction) {
@@ -106,16 +90,11 @@ class ReaderSettingPage extends StatelessWidget {
             leading: const Icon(Icons.chrome_reader_mode_outlined),
             trailing: const Icon(Icons.keyboard_arrow_down),
             onTap: () =>
-                Get.dialog(
-                  RadioListDialog(
-                    value: controller.readerSettingsState.value.direction,
-                    values: [
-                      (ReaderDirection.upToDown, "scroll".tr),
-                      (ReaderDirection.leftToRight, "left_to_right".tr),
-                      (ReaderDirection.rightToLeft, "right_to_left".tr),
-                    ],
-                    title: "reading_direction".tr,
-                  ),
+                showRadioListSheet(
+                  context,
+                  value: controller.readerSettingsState.value.direction,
+                  values: [(ReaderDirection.upToDown, "scroll".tr), (ReaderDirection.leftToRight, "left_to_right".tr), (ReaderDirection.rightToLeft, "right_to_left".tr)],
+                  title: "reading_direction".tr,
                 ).then((value) {
                   if (value != null) controller.changeReaderDirection(value);
                 }),
@@ -129,6 +108,17 @@ class ReaderSettingPage extends StatelessWidget {
               leading: const Icon(Icons.animation),
               onChanged: (enabled) => controller.changeReaderPageTurningAnimation(enabled),
               value: controller.readerSettingsState.value.pageTurningAnimation,
+            ),
+          ),
+        ),
+        Obx(
+          () => Offstage(
+            offstage: controller.readerSettingsState.value.direction == ReaderDirection.upToDown,
+            child: SwitchTile(
+              title: "volume_key_page_turning".tr,
+              leading: const Icon(Icons.volume_up_outlined),
+              onChanged: _changeVolumeKeyPageTurning,
+              value: controller.readerSettingsState.value.volumeKeyPageTurning,
             ),
           ),
         ),
@@ -168,12 +158,11 @@ class ReaderSettingPage extends StatelessWidget {
               leading: const Icon(Icons.looks_two_outlined),
               trailing: const Icon(Icons.keyboard_arrow_down),
               onTap: () =>
-                  Get.dialog(
-                    RadioListDialog(
-                      value: controller.readerSettingsState.value.dualPageMode,
-                      values: [(DualPageMode.auto, "auto".tr), (DualPageMode.enabled, "enable".tr), (DualPageMode.disabled, "disable".tr)],
-                      title: "dual_page".tr,
-                    ),
+                  showRadioListSheet(
+                    context,
+                    value: controller.readerSettingsState.value.dualPageMode,
+                    values: [(DualPageMode.auto, "auto".tr), (DualPageMode.enabled, "enable".tr), (DualPageMode.disabled, "disable".tr)],
+                    title: "dual_page".tr,
                   ).then((value) {
                     if (value != null) controller.changeDualPageMode(value);
                   }),
@@ -195,14 +184,29 @@ class ReaderSettingPage extends StatelessWidget {
               max: 60,
               divisions: 120,
               decimalPlaces: 1,
-              value: controller.readerSettingsState.value.dualPageSpacing,
-              onChanged: (value) => controller.readerSettingsState.value = controller.readerSettingsState.value.copyWith(dualPageSpacing: value),
+              initValue: controller.readerSettingsState.value.dualPageSpacing,
               onChangeEnd: (value) => controller.changeDualPageSpacing(value),
             ),
           );
         }),
       ],
     );
+  }
+
+  void _changeVolumeKeyPageTurning(bool enabled) {
+    if (enabled && !Platform.isAndroid) {
+      Get.dialog(
+        AlertDialog(
+          icon: const Icon(Icons.warning_amber_outlined),
+          title: Text("warning".tr),
+          content: Text("volume_key_page_turning_android_only".tr),
+          actions: [TextButton(onPressed: Get.back, child: Text("confirm".tr))],
+        ),
+      );
+      return;
+    }
+
+    controller.changeReaderVolumeKeyPageTurning(enabled);
   }
 
   Widget _buildTheme(BuildContext context) {
@@ -214,7 +218,7 @@ class ReaderSettingPage extends StatelessWidget {
             subtitle: controller.isFontFileAvailable.value ? controller.readerSettingsState.value.textFamily.toString() : "system_font".tr,
             leading: const Icon(Icons.format_shapes_outlined),
             trailing: const Icon(Icons.keyboard_arrow_down),
-            onTap: () => Get.dialog(NormalListDialog(values: [(0, "system_font".tr), (1, "custom_font".tr)], title: "font".tr)).then((value) async {
+            onTap: () => showNormalListSheet(context, values: [(0, "system_font".tr), (1, "custom_font".tr)], title: "font".tr).then((value) async {
               if (value == 0) {
                 await controller.deleteFontDir();
                 controller.changeReaderTextStyleFilePath(null);
@@ -245,7 +249,7 @@ class ReaderSettingPage extends StatelessWidget {
             trailing: controller.currentTextColor.value == null
                 ? const Icon(Icons.keyboard_arrow_down)
                 : ColorIndicator(width: 20, height: 20, borderRadius: 100, color: controller.currentTextColor.value!),
-            onTap: () => Get.dialog(NormalListDialog(values: [(0, "change_font_color".tr), (1, "reset_font_color".tr)], title: "font_color".tr)).then((value) {
+            onTap: () => showNormalListSheet(context, values: [(0, "change_font_color".tr), (1, "reset_font_color".tr)], title: "font_color".tr).then((value) {
               if (value == 0) {
                 _buildColorPickerDialog(Get.context!, true);
               } else if (value == 1) {
@@ -262,25 +266,22 @@ class ReaderSettingPage extends StatelessWidget {
             trailing: controller.currentBgColor.value == null
                 ? const Icon(Icons.keyboard_arrow_down)
                 : ColorIndicator(width: 20, height: 20, borderRadius: 100, color: controller.currentBgColor.value!),
-            onTap: () =>
-                Get.dialog(NormalListDialog(values: [(0, "change_background_color".tr), (1, "reset_background_color".tr)], title: "background_color".tr)).then((
-                  value,
-                ) {
-                  if (value == 0) {
-                    _buildColorPickerDialog(Get.context!, false);
-                  } else if (value == 1) {
-                    Get.context!.isDarkMode ? controller.changeReaderNightBgColor(null) : controller.changeReaderDayBgColor(null);
-                    showSnackBar(message: "reset_background_color_successfully".tr, context: Get.context!);
-                  }
-                }),
+            onTap: () => showNormalListSheet(context, values: [(0, "change_background_color".tr), (1, "reset_background_color".tr)], title: "background_color".tr).then((value) {
+              if (value == 0) {
+                _buildColorPickerDialog(Get.context!, false);
+              } else if (value == 1) {
+                Get.context!.isDarkMode ? controller.changeReaderNightBgColor(null) : controller.changeReaderDayBgColor(null);
+                showSnackBar(message: "reset_background_color_successfully".tr, context: Get.context!);
+              }
+            }),
           ),
         ),
         NormalTile(
           title: "background_image".tr,
           leading: const Icon(Icons.image_outlined),
           trailing: const Icon(Icons.keyboard_arrow_down),
-          onTap: () => Get.dialog(NormalListDialog(values: [(0, "change_background_image".tr), (1, "reset_background_image".tr)], title: "background_image".tr))
-              .then((value) async {
+          onTap: () =>
+              showNormalListSheet(context, values: [(0, "change_background_image".tr), (1, "reset_background_image".tr)], title: "background_image".tr).then((value) async {
                 if (value == 0) {
                   final result = await controller.pickBgImageFile(Get.context!.isDarkMode);
                   switch (result) {
@@ -292,7 +293,7 @@ class ReaderSettingPage extends StatelessWidget {
                       showSnackBar(message: "set_background_failed".tr, context: Get.context!);
                   }
                 } else if (value == 1) {
-                  Get.context!.isDarkMode ? controller.changeReaderNightBgImage(null) : controller.changeReaderDayBgImage(null);
+                  await controller.clearReaderBgImage(Get.context!.isDarkMode);
                   showSnackBar(message: "reset_background_image_successfully".tr, context: Get.context!);
                 }
               }),
@@ -305,14 +306,7 @@ class ReaderSettingPage extends StatelessWidget {
     final tts = TtsService.instance;
     return ListView(
       children: [
-        Obx(
-          () => SwitchTile(
-            title: "enabled_listening".tr,
-            leading: const Icon(Icons.record_voice_over_outlined),
-            onChanged: (v) => tts.setEnabled(v),
-            value: tts.enabled.value,
-          ),
-        ),
+        Obx(() => SwitchTile(title: "enabled_listening".tr, leading: const Icon(Icons.record_voice_over_outlined), onChanged: (v) => tts.setEnabled(v), value: tts.enabled.value)),
         NormalTile(
           title: "open_tts_system_setting".tr,
           leading: const Icon(Icons.settings_applications_outlined),
@@ -327,18 +321,15 @@ class ReaderSettingPage extends StatelessWidget {
                 Obx(
                   () => NormalTile(
                     title: "tts_engine".tr,
-                    subtitle: tts.engine.value == null
-                        ? (Platform.isAndroid ? "auto".tr : "unsupportable_os_tip".tr)
-                        : tts.displayEngineName(tts.engine.value!),
+                    subtitle: tts.engine.value == null ? (Platform.isAndroid ? "auto".tr : "unsupportable_os_tip".tr) : tts.displayEngineName(tts.engine.value!),
                     leading: const Icon(Icons.settings_outlined),
                     trailing: const Icon(Icons.keyboard_arrow_down),
                     onTap: () async {
                       await tts.refreshEngines();
-                      Get.dialog(
-                        NormalListDialog(
-                          values: [(null, "auto".tr), ...tts.engines.map((value) => (value, tts.displayEngineName(value)))],
-                          title: "tts_engine".tr,
-                        ),
+                      showNormalListSheet(
+                        Get.context!,
+                        values: [(null, "auto".tr), ...tts.engines.map((value) => (value, tts.displayEngineName(value)))],
+                        title: "tts_engine".tr,
                       ).then((value) async {
                         if (value == null) {
                           tts.applyEngine(null);
@@ -358,11 +349,10 @@ class ReaderSettingPage extends StatelessWidget {
                     trailing: const Icon(Icons.keyboard_arrow_down),
                     onTap: () async {
                       await tts.refreshVoices();
-                      Get.dialog(
-                        NormalListDialog(
-                          values: [(null, "auto".tr), ...tts.voices.map((value) => (value, "${value["name"]}(${value["locale"]})"))],
-                          title: "timbre".tr,
-                        ),
+                      showNormalListSheet(
+                        Get.context!,
+                        values: [(null, "auto".tr), ...tts.voices.map((value) => (value, "${value["name"]}(${value["locale"]})"))],
+                        title: "timbre".tr,
                       ).then((value) async {
                         if (value == null) {
                           tts.applyVoice(null);
@@ -374,44 +364,35 @@ class ReaderSettingPage extends StatelessWidget {
                   ),
                 ),
                 const Divider(height: 1),
-                Obx(
-                  () => SliderTile(
-                    title: "speech_rate".tr,
-                    leading: const Icon(Icons.speed),
-                    min: 0.1,
-                    max: 1.0,
-                    divisions: 18,
-                    decimalPlaces: 1,
-                    value: tts.rate.value,
-                    onChanged: (v) => tts.rate.value = v,
-                    onChangeEnd: (v) => tts.setRate(v),
-                  ),
+                SliderTile(
+                  title: "speech_rate".tr,
+                  leading: const Icon(Icons.speed),
+                  min: 0.1,
+                  max: 1.0,
+                  divisions: 18,
+                  decimalPlaces: 1,
+                  initValue: tts.rate.value,
+                  onChangeEnd: (v) => tts.setRate(v),
                 ),
-                Obx(
-                  () => SliderTile(
-                    title: "tone".tr,
-                    leading: const Icon(Icons.graphic_eq),
-                    min: 0.5,
-                    max: 2.0,
-                    divisions: 15,
-                    decimalPlaces: 1,
-                    value: tts.pitch.value,
-                    onChanged: (v) => tts.pitch.value = v,
-                    onChangeEnd: (v) => tts.setPitch(v),
-                  ),
+                SliderTile(
+                  title: "tone".tr,
+                  leading: const Icon(Icons.graphic_eq),
+                  min: 0.5,
+                  max: 2.0,
+                  divisions: 15,
+                  decimalPlaces: 1,
+                  initValue: tts.pitch.value,
+                  onChangeEnd: (v) => tts.setPitch(v),
                 ),
-                Obx(
-                  () => SliderTile(
-                    title: "volume".tr,
-                    leading: const Icon(Icons.volume_up_outlined),
-                    min: 0,
-                    max: 1,
-                    divisions: 20,
-                    decimalPlaces: 2,
-                    value: tts.volume.value,
-                    onChanged: (v) => tts.volume.value = v,
-                    onChangeEnd: (v) => tts.setVolume(v),
-                  ),
+                SliderTile(
+                  title: "volume".tr,
+                  leading: const Icon(Icons.volume_up_outlined),
+                  min: 0,
+                  max: 1,
+                  divisions: 20,
+                  decimalPlaces: 2,
+                  initValue: tts.volume.value,
+                  onChangeEnd: (v) => tts.setVolume(v),
                 ),
                 const Divider(height: 1),
                 NormalTile(title: "refresh_setting".tr, subtitle: "refresh_tts_setting_tip".tr, leading: const Icon(Icons.refresh)),
@@ -420,11 +401,7 @@ class ReaderSettingPage extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: SizedBox(
                     width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () => tts.refreshSettings(restartIfPlaying: true),
-                      icon: const Icon(Icons.refresh),
-                      label: Text("refresh_setting".tr),
-                    ),
+                    child: OutlinedButton.icon(onPressed: () => tts.refreshSettings(restartIfPlaying: true), icon: const Icon(Icons.refresh), label: Text("refresh_setting".tr)),
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -439,71 +416,55 @@ class ReaderSettingPage extends StatelessWidget {
   Widget _buildPadding() {
     return ListView(
       children: [
-        Obx(
-          () => SliderTile(
-            title: "left_margin".tr,
-            leading: const Icon(Icons.border_left),
-            min: 0,
-            max: 100,
-            divisions: 100,
-            decimalPlaces: 0,
-            value: controller.readerSettingsState.value.leftMargin,
-            onChanged: (value) => controller.readerSettingsState.value = controller.readerSettingsState.value.copyWith(leftMargin: value),
-            onChangeEnd: (value) => controller.changeLeftMargin(value),
-          ),
+        SliderTile(
+          title: "left_margin".tr,
+          leading: const Icon(Icons.border_left),
+          min: 0,
+          max: 100,
+          divisions: 100,
+          decimalPlaces: 0,
+          initValue: controller.readerSettingsState.value.leftMargin,
+          onChangeEnd: (value) => controller.changeLeftMargin(value),
         ),
-        Obx(
-          () => SliderTile(
-            title: "top_margin".tr,
-            leading: const Icon(Icons.border_top),
-            min: 0,
-            max: 100,
-            divisions: 100,
-            decimalPlaces: 0,
-            value: controller.readerSettingsState.value.topMargin,
-            onChanged: (value) => controller.readerSettingsState.value = controller.readerSettingsState.value.copyWith(topMargin: value),
-            onChangeEnd: (value) => controller.changeTopMargin(value),
-          ),
+        SliderTile(
+          title: "top_margin".tr,
+          leading: const Icon(Icons.border_top),
+          min: 0,
+          max: 100,
+          divisions: 100,
+          decimalPlaces: 0,
+          initValue: controller.readerSettingsState.value.topMargin,
+          onChangeEnd: (value) => controller.changeTopMargin(value),
         ),
-        Obx(
-          () => SliderTile(
-            title: "right_margin".tr,
-            leading: const Icon(Icons.border_right),
-            min: 0,
-            max: 100,
-            divisions: 100,
-            decimalPlaces: 0,
-            value: controller.readerSettingsState.value.rightMargin,
-            onChanged: (value) => controller.readerSettingsState.value = controller.readerSettingsState.value.copyWith(rightMargin: value),
-            onChangeEnd: (value) => controller.changeRightMargin(value),
-          ),
+        SliderTile(
+          title: "right_margin".tr,
+          leading: const Icon(Icons.border_right),
+          min: 0,
+          max: 100,
+          divisions: 100,
+          decimalPlaces: 0,
+          initValue: controller.readerSettingsState.value.rightMargin,
+          onChangeEnd: (value) => controller.changeRightMargin(value),
         ),
-        Obx(
-          () => SliderTile(
-            title: "bottom_margin".tr,
-            leading: const Icon(Icons.border_bottom),
-            min: 0,
-            max: 100,
-            divisions: 100,
-            decimalPlaces: 0,
-            value: controller.readerSettingsState.value.bottomMargin,
-            onChanged: (value) => controller.readerSettingsState.value = controller.readerSettingsState.value.copyWith(bottomMargin: value),
-            onChangeEnd: (value) => controller.changeBottomMargin(value),
-          ),
+        SliderTile(
+          title: "bottom_margin".tr,
+          leading: const Icon(Icons.border_bottom),
+          min: 0,
+          max: 100,
+          divisions: 100,
+          decimalPlaces: 0,
+          initValue: controller.readerSettingsState.value.bottomMargin,
+          onChangeEnd: (value) => controller.changeBottomMargin(value),
         ),
-        Obx(
-          () => SliderTile(
-            title: "bottomStatusBarHorizontalSpacing".tr,
-            leading: const Icon(Icons.swap_horiz),
-            min: 0,
-            max: 100,
-            divisions: 100,
-            decimalPlaces: 0,
-            value: controller.readerSettingsState.value.readerBottomStatusBarHorizontalSpacing,
-            onChanged: (value) =>
-                controller.readerSettingsState.value = controller.readerSettingsState.value.copyWith(readerBottomStatusBarHorizontalSpacing: value.toInt()),
-            onChangeEnd: (value) => controller.changeReaderBottomStatusBarHorizontalSpacing(value.toInt()),
-          ),
+        SliderTile(
+          title: "bottomStatusBarHorizontalSpacing".tr,
+          leading: const Icon(Icons.swap_horiz),
+          min: 0,
+          max: 100,
+          divisions: 100,
+          decimalPlaces: 0,
+          initValue: controller.readerSettingsState.value.readerBottomStatusBarHorizontalSpacing,
+          onChangeEnd: (value) => controller.changeReaderBottomStatusBarHorizontalSpacing(value.toInt()),
         ),
       ],
     );
